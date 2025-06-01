@@ -54,9 +54,14 @@ def parse_suica_data(text, user_name="田中太郎", valid_stations=None,
             # 有効な駅・バスかチェック
             is_valid = False
 
-            if "東急バス" in record:
-                # バスの場合：東急バスが指定駅に含まれているかチェック
-                is_valid = "東急バス" in valid_stations
+            # バス利用かどうかを判定（「バス」を含む場合）
+            is_bus = "バス" in record
+
+            if is_bus:
+                # バスの場合：バス事業者が指定駅に含まれているかチェック
+                # record内からバス事業者名を抽出
+                bus_companies = [station for station in valid_stations if "バス" in station]
+                is_valid = any(bus_company in record for bus_company in bus_companies)
             elif "入" in record and "出" in record:
                 # 駅間移動の場合：起点または終点のいずれかが指定駅に含まれているかチェック
                 parts = record.split()
@@ -70,9 +75,10 @@ def parse_suica_data(text, user_name="田中太郎", valid_stations=None,
                     elif part == "出" and i + 1 < len(parts):
                         to_station = parts[i + 1]
 
-                # 起点または終点のいずれかが指定駅に含まれているかチェック
-                from_valid = any(station in from_station for station in valid_stations if station != "東急バス")
-                to_valid = any(station in to_station for station in valid_stations if station != "東急バス")
+                # 起点または終点のいずれかが指定駅に含まれているかチェック（バス事業者は除外）
+                station_list = [station for station in valid_stations if "バス" not in station]
+                from_valid = any(station in from_station for station in station_list)
+                to_valid = any(station in to_station for station in station_list)
 
                 # AND条件：起点と終点の両方が指定駅に含まれている必要がある
                 is_valid = from_valid and to_valid
@@ -85,8 +91,13 @@ def parse_suica_data(text, user_name="田中太郎", valid_stations=None,
                 amount = int(amount_str.replace('-', '').replace(',', ''))
 
                 # 摘要を生成
-                if "東急バス" in record:
-                    summary = "東急バス"
+                if is_bus:
+                    # バス利用の場合、事業者名を抽出
+                    bus_companies = [station for station in valid_stations if "バス" in station and station in record]
+                    if bus_companies:
+                        summary = bus_companies[0]  # 最初に見つかった事業者名を使用
+                    else:
+                        summary = "バス"  # バス事業者が見つからない場合のフォールバック
                 elif "入" in record and "出" in record:
                     # 駅間移動の場合
                     parts = record.split()
@@ -197,9 +208,10 @@ def main():
         st.subheader("対象駅・交通機関")
         default_stations = ["五反田"]
         stations_text = st.text_area(
-            "対象駅（1行に1つずつ入力）",
+            "対象駅・交通機関（1行に1つずつ入力）",
             value="\n".join(default_stations),
-            height=100
+            height=100,
+            help="駅名やバス事業者名（例：東急バス）を入力してください"
         )
         valid_stations = [station.strip() for station in stations_text.split('\n') if station.strip()]
 
