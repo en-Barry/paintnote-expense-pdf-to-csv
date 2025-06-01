@@ -107,7 +107,7 @@ def parse_suica_data(text, user_name="田中太郎", valid_stations=None,
 
                     # 「入」の次の要素が起点駅、「出」の次の要素が終点駅
                     for i, part in enumerate(parts):
-                        if part == "入" or part == "＊入" and i + 1 < len(parts):
+                        if (part == "入" or part == "＊入") and i + 1 < len(parts):
                             from_station = parts[i + 1]
                         elif part == "出" and i + 1 < len(parts):
                             to_station = parts[i + 1]
